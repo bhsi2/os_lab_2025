@@ -1,0 +1,40 @@
+Задание 1
+
+Я изменил swap.c следующим образом:
+
+#include "swap.h"
+void Swap(char *left, char *right)
+{
+	char temp = *left;
+	*left = *right;
+	*right = temp;
+}
+
+Задание 2
+
+Я изменил revert_string.c следующим образом:
+
+#include <string.h>
+#include "revert_string.h"
+void RevertString(char *str)
+{
+	int l = strlen(str);
+	for (int i = 0; i < (int)(l / 2); i++){
+		char temp = str[i];
+		str[i] = str[l - i - 1];
+		str[l - i - 1] = temp;
+	}
+}
+
+
+Задание 3
+
+Я сначала создал папки static и shared для статической и динамической библиотек и скомпилировал main.c в файл main.o.
+Далее просто скомпилировал revert_string.c с помощью gcc с флагами -c и -o в файл revert_string.o в папке static: gcc -c revert_string.c -o static/revert_string.o.
+Аналогично но с уже флагом -fPIC скомпилировал в файл revert_string.o в папке shared: gcc -c -fPIC revert_string.c -o  shared/revert_string.o.
+Далее создал с помощью утилиты ar статическую библиотеку lib0.a из файла revert_string.o в папке static: ar rcs static/lib0.a static/revert_string.o.
+Сделал линковку для этой статической библиотеки и main.c командой: gcc main.o -Lstatic -l0 -o statically-linked.
+Сделал динамическую библиотеку из файла shared/revert_string.o: gcc -shared shared/revert_string.o -o shared/lib0.so.
+И сделал линковку для динамической библиотеки: gcc main.o -Lshared -l0 -o use-shared-library.
+Чтобы использовать статическую библиотеку достаточно просто: ./statically-linked.
+А чтобы динамическую: LD_LIBRARY_PATH=$(pwd)/shared ./use-shared-library.
