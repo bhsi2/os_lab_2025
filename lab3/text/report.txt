@@ -1,2 +1,65 @@
 Задание 1
 
+Я добавил в файл find_min_max.c следующий код:
+for (int i = begin; i < end; i++){
+    if (min_max.max < array[i]){
+        min_max.max = array[i];
+    }
+    if (min_max.min > array[i]){
+        min_max.min = array[i];
+    }
+}
+
+
+И скомилировал: gcc find_min_max.c sequiential_min_max.c utils.c
+И запустил: ./a.out
+
+
+Задание 2
+
+Я завершил программу parallel_min_max.c.
+Проверял что при вводе значения seed, pnum и array_size больше 0.
+Создал массив для pipes который хранит для всех процессов каналы чтения и записи.
+Так же создал матрицу для записи имен файлов.
+Распараллелил нахождение минимума и максимума дав каждому процессу часть массива.
+Для каждого процесса при режиме `by_files` записываю найденные локальные максимумы и минимумы массива в отдельные файлы, а после уже считываю полученные значения из файлов, которые после удаляю.
+Для иного случая используя pipes записываю результаты нахождения локального максимума и минимума, а после уже считываю значения записанные в pipe`ы.
+
+
+Задание 3
+
+Я добавил следующее в Makefile:
+
+all: sequential_min_max parallel_min_max
+
+
+Задание 4
+
+Я написал файл run.c:
+
+#include <unistd.h>
+int main(void) {
+    char *const args = {"Command-line", ".", NULL};
+
+    int pid = fork();
+
+
+    if ( pid == 0 ) {
+		execvp("sequential_min_max", args);
+	}
+
+    wait( 2 );
+
+    return 0;
+}
+
+
+И добавил его в makefile:
+
+all: sequential_min_max parallel_min_max run
+
+run: run.c
+	$(CC) run.c -o run.out $(CFLAGS)
+
+clean:
+    rm ... run.out
