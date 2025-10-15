@@ -1,0 +1,76 @@
+Задание 1
+
+Добавил в структуру опций командной строки необязательный параметр timeout, а так же при его наличии проверку на неотрицательность.
+Создал массив хранения PID дочерних процессов, далее при запуске дочерних процессов записываю их PID в этот массив.
+Делаю проыерку если timeout установлен, то устанавливаю обработчик сигнала ALARM и устанавливаю таймаут на заданное значение.
+Далее ждем когда закончатся дочерние процессы и считаем оставшиеся активные процессы.
+Если ещё остались дочерние процессы то отправляем сигнал SIGKILL тем самым "убивая" процессы и отключаем таймаут.
+Далее просто считаем количество полученных результатов и если оно меньше количества запускаемых процессов то выводим предупреждающее сообщение.
+
+
+Задание 2
+
+Я создал простенькую программу zombie_demo.c.
+компиляция и запуск: gcc -o zombie_demo zombie_demo.c ./zombie_demo
+просмотр зомби процессов: ps aux | grep defunct
+
+
+Задание 3
+
+При компиляции и в последующем запуске программы process_memory.c в консоль выводиится следующее:
+
+Address etext: BC7D9509 
+Address edata: BC7DC018 
+Address end  : BC7DC050 
+ID main          is at virtual address: BC7D9249
+ID showit        is at virtual address: BC7D940C
+ID cptr          is at virtual address: BC7DC010
+ID buffer1       is at virtual address: BC7DC030
+ID i     is at virtual address: EDF82814
+A demonstration
+ID buffer2       is at virtual address: EDF827F0
+Alocated memory at D3B546B0
+This message is output by the function showit()
+
+etext Это первый адрес после окончания текстового сегмента (кода программы).
+edata Это первый адрес после окончания инициализированного сегмента данных.
+end Это первый адрес после окончания неинициализированного сегмента данных .
+
+И как мы видим etext идет как раз после кода функции showit (чем заканчивается код программы).
+edata идет после инициализированной глобальной переменной cptr.
+end идет уже после неинициализированной глобальной переменной buffer1.
+Адреса переменных i и buffer2 находятся в стеке что является причиной такого адреса который больше адреса сегмента кода.
+Куча в своей очереди находится между адресами сегмента кода и стеком.
+
+
+Задание 4
+
+Создал простенький makefile для компиляции программ:
+
+CC=gcc
+CFLAGS=-I.
+
+
+all: process_memory parallel_min_max
+
+process_memory : process_memory.c
+	$(CC) process_memory.c -o process_memory $(CFLAGS)
+
+parallel_min_max : utils.o find_min_max.o utils.h find_min_max.h
+	$(CC) -o parallel_min_max utils.o find_min_max.o parallel_min_max.c $(CFLAGS)
+
+utils.o : utils.h
+	$(CC) -o utils.o -c utils.c $(CFLAGS)
+
+find_min_max.o : utils.h find_min_max.h
+	$(CC) -o find_min_max.o -c find_min_max.c $(CFLAGS)
+
+clean : 
+	rm process_memory parallel_min_max utils.o find_min_max.o
+
+
+Задание 5
+
+
+
+
