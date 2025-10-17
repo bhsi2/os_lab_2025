@@ -49,7 +49,8 @@ end идет уже после неинициализированной глоб
 
 CC=gcc
 CFLAGS=-I.
-
+DIR=../../lab3/src/
+vpath %.h $(DIR)
 
 all: process_memory parallel_min_max
 
@@ -57,13 +58,13 @@ process_memory : process_memory.c
 	$(CC) process_memory.c -o process_memory $(CFLAGS)
 
 parallel_min_max : utils.o find_min_max.o utils.h find_min_max.h
-	$(CC) -o parallel_min_max utils.o find_min_max.o parallel_min_max.c $(CFLAGS)
+	$(CC) -o parallel_min_max utils.o find_min_max.o $(DIR)parallel_min_max.c $(CFLAGS)
 
 utils.o : utils.h
-	$(CC) -o utils.o -c utils.c $(CFLAGS)
+	$(CC) -o utils.o -c $(DIR)utils.c $(CFLAGS)
 
 find_min_max.o : utils.h find_min_max.h
-	$(CC) -o find_min_max.o -c find_min_max.c $(CFLAGS)
+	$(CC) -o find_min_max.o -c $(DIR)find_min_max.c $(CFLAGS)
 
 clean : 
 	rm process_memory parallel_min_max utils.o find_min_max.o
@@ -72,5 +73,21 @@ clean :
 Задание 5
 
 
+Написал функцию парсинга аргументов командной строки с проверкий вводимых данных и функцию считающую текущее вермя в миллисекундах.
+Создаю и выделяю память для массива а так же инциализирую его функцией GenarateArray.
+Создал массивы для потоков и для аргументов потоков и заполняя массив аргументов потоков данными начала и конца обработки массива и указателем на сам массив.
+Считаю текущее время в миллисекундах далее создаю потоки, после чего дожидаюсь окончания работы каждого потока и сохраняю результат каждого потока после чего прибавляю получаемый результат к всей сумме.
+Высчитываю текущее время в миллисекундах и вычитаю из этого значения значение времени когда считал сумму массива.
 
+
+Задание 6
+
+
+Я добавил в makefile следующее:
+parallel_sum : sum.h
+	$(CC) -pthread -o parallel_sum parallel_sum.c
+
+И добавил в clean:
+clean : 
+	rm process_memory parallel_min_max utils.o find_min_max.o parallel_sum
 

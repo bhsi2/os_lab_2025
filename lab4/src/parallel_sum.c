@@ -1,132 +1,152 @@
 #include <stdint.h>
 #include <stdio.h>
 #include <stdlib.h>
+#include <string.h>
+#include <getopt.h>
+#include <sys/time.h>
 
 #include <pthread.h>
 
 #include "utils.h"
+#include "sum.h"
 
-struct SumArgs {
-  int *array;
-  int begin;
-  int end;
+
+struct Config {
+  uint32_t threads_num;
+  uint32_t array_size;
+  uint32_t seed;
 };
 
-int Sum(const struct SumArgs *args) {
-  int sum = 0;
-  // TODO: your code here 
-  return sum;
+int parse_args(int argc, char **argv, struct Config *config) {
+  static struct option options[] = {
+      {"threads_num", required_argument, 0, 't'},
+      {"array_size", required_argument, 0, 'a'},
+      {"seed", required_argument, 0, 's'},
+      {0, 0, 0, 0}
+  };
+
+  int option_index = 0;
+  int c;
+  
+  while ((c = getopt_long(argc, argv, "t:a:s:", options, &option_index)) != -1) {
+    switch (c) {
+      case 't':
+        config->threads_num = atoi(optarg);
+        if (config->threads_num <= 0) {
+          printf("threads_num must be positive\n");
+          return -1;
+        }
+        break;
+      case 'a':
+        config->array_size = atoi(optarg);
+        if (config->array_size <= 0) {
+          printf("array_size must be positive\n");
+          return -1;
+        }
+        break;
+      case 's':
+        config->seed = atoi(optarg);
+        if (config->seed <= 0) {
+          printf("seed must be positive\n");
+          return -1;
+        }
+        break;
+      default:
+        printf("Usage: %s --threads_num num --array_size num --seed num\n", argv[0]);
+        return -1;
+    }
+  }
+  
+  if (config->threads_num == 0 || config->array_size == 0 || config->seed == 0) {
+    printf("Usage: %s --threads_num num --array_size num --seed num\n", argv[0]);
+    return -1;
+  }
+  
+  return 0;
 }
+
 
 void *ThreadSum(void *args) {
   struct SumArgs *sum_args = (struct SumArgs *)args;
   return (void *)(size_t)Sum(sum_args);
 }
 
+long long current_time_ms() {
+    struct timeval tv;
+    gettimeofday(&tv, NULL);
+    return (long long)tv.tv_sec * 1000 + tv.tv_usec / 1000;
+}
+
 int main(int argc, char **argv) {
-  uint32_t threads_num = 0;
-  uint32_t array_size = 0;
-  uint32_t seed = 0;
-  pthread_t threads[threads_num];
+  struct Config config = {0, 0, 0};
 
-  while (true) {
-    int current_optind = optind ? optind : 1;
-
-    static struct option options[] = {{"threads_num", required_argument, 0, 0},
-                                      {"seed", required_argument, 0, 0},
-                                      {"array_size", required_argument, 0, 0},
-                                      {0, 0, 0, 0}};
-
-    int option_index = 0;
-    int c = getopt_long(argc, argv, "f", options, &option_index);
-
-    if (c == -1) break;
-
-    switch (c) {
-      case 0:
-        switch (option_index) {
-          case 0:
-            seed = atoi(optarg);
-            if (seed <= 0) {
-                printf("seed must be a positive number\n");
-                return 1;
-            }
-            break;
-          case 1:
-            array_size = atoi(optarg);
-            if (array_size <= 0) {
-                printf("array_size must be a positive number\n");
-                return 1;
-            }
-            break;
-          case 2:
-            pnum = atoi(optarg);
-            if (pnum <= 0) {
-                printf("pnum must be a positive number\n");
-                return 1;
-            }
-            break;
-          case 3:
-            with_files = true;
-            break;
-          case 4:
-            timeout = atoi(optarg);
-            if (timeout <= 0) {
-                printf("timeout must be a positive number\n");
-                return 1;
-            }
-            break;
-
-          default:
-            printf("Index %d is out of options\n", option_index);
-        }
-        break;
-
-      default:
-        printf("getopt returned character code 0%o?\n", c);
-    }
-  }
-
-  if (optind < argc) {
-    printf("Has at least one no option argument\n");
+  if (parse_args(argc, argv, &config) != 0) {
     return 1;
   }
 
-  if (seed == -1 || array_size == -1 || threads_num == -1) {
-    printf("Usage: %s --threads_num \"num\" --seed \"num\" --array_size \"num\" \n",
-           argv[0]);
+
+  int *array = malloc(sizeof(int) * config.array_size);
+  if (array == NULL) {
+    printf("Memory allocation failed for array\n");
     return 1;
   }
-  /*
-   *  TODO:
-   *  threads_num by command line arguments
-   *  array_size by command line arguments
-   *	seed by command line arguments
-   */
 
-  
+  GenerateArray(array, config.array_size, config.seed);
 
-  int *array = malloc(sizeof(int) * array_size);
-  GenerateArray(array, array_size, seed);
 
-  int *array = malloc(sizeof(int) * array_size);
+  pthread_t threads[config.threads_num];
+  struct SumArgs args[config.threads_num];
 
-  struct SumArgs args[threads_num];
-  for (uint32_t i = 0; i < threads_num; i++) {
-    if (pthread_create(&threads[i], NULL, ThreadSum, (void *)&args)) {
-      printf("Error: pthread_create failed!\n");
+
+  int chunk_size = config.array_size / config.threads_num;
+  int remainder = config.array_size % config.threads_num;
+
+
+  int current_start = 0;
+  for (uint32_t i = 0; i < config.threads_num; i++) {
+    args[i].array = array;
+    args[i].begin = current_start;
+    
+    int current_end = current_start + chunk_size + (i < remainder ? 1 : 0);
+    args[i].end = current_end;
+    
+    current_start = current_end;
+  }
+
+
+  long long start_time = current_time_ms();
+
+  for (uint32_t i = 0; i < config.threads_num; i++) {
+    if (pthread_create(&threads[i], NULL, ThreadSum, (void *)&args[i]) != 0) {
+      printf("Error: pthread_create failed for thread %u!\n", i);
+      free(array);
       return 1;
     }
   }
 
+
   int total_sum = 0;
-  for (uint32_t i = 0; i < threads_num; i++) {
-    int sum = 0;
-    pthread_join(threads[i], (void **)&sum);
+  for (uint32_t i = 0; i < config.threads_num; i++) {
+    void *thread_result;
+    if (pthread_join(threads[i], &thread_result) != 0) {
+      printf("Error: pthread_join failed for thread %u!\n", i);
+      free(array);
+      return 1;
+    }
+    int sum = (int)(size_t)thread_result;
     total_sum += sum;
+    printf("Thread %u sum: %d\n", i, sum);
   }
 
+
+  long long end_time = current_time_ms();
+  long long elapsed_time = end_time - start_time;
+
   free(array);
-  printf("Total: %d\n", total_sum);
+
+
+  printf("Calculation time: %lld ms\n", elapsed_time);
+  
+
   return 0;
 }
