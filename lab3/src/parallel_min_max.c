@@ -18,24 +18,10 @@
 #include "find_min_max.h"
 #include "utils.h"
 
-int pnum;
-pid_t *child_pids;
-
-void send_SIGKILL(int param){
-  for (int i = 0; i < pnum; i++) {
-    if (kill(child_pids[i], 0) == 0) {
-      if (kill(child_pids[i], SIGKILL) == 0) {
-        printf("Killed child process with PID: %d\n", child_pids[i]);
-      } else {
-        printf("Failed to kill child process with PID: %d\n", child_pids[i]);
-      }
-    }
-  }
-}
 int main(int argc, char **argv) {
   int seed = -1;
   int array_size = -1;
-  pnum = -1;
+  int pnum = -1;
   int timeout = -1; 
   bool with_files = false;
 
@@ -46,7 +32,7 @@ int main(int argc, char **argv) {
                                       {"array_size", required_argument, 0, 0},
                                       {"pnum", required_argument, 0, 0},
                                       {"by_files", no_argument, 0, 'f'},
-                                      {"timeout", optional_argument, 0, 0},
+                                      {"timeout", required_argument , 0, 0},
                                       {0, 0, 0, 0}};
 
     int option_index = 0;
@@ -120,7 +106,7 @@ int main(int argc, char **argv) {
   GenerateArray(array, array_size, seed);
   int active_child_processes = 0;
 
-
+  pid_t *child_pids = malloc(sizeof(pid_t) * pnum);
 
   int pipefd[2 * pnum];
   char **filenames = NULL;
@@ -133,6 +119,7 @@ int main(int argc, char **argv) {
       }
     }
   } else {
+    // Prepare file names
     filenames = malloc(sizeof(char*) * pnum);
     for (int i = 0; i < pnum; i++) {
       filenames[i] = malloc(20);
@@ -150,7 +137,7 @@ int main(int argc, char **argv) {
       child_pids[i] = child_pid; 
       
       if (child_pid == 0) {
-      
+        
         int start = i * (array_size / pnum);
         int end = (i == pnum - 1) ? array_size : (i + 1) * (array_size / pnum);
         
@@ -165,20 +152,21 @@ int main(int argc, char **argv) {
           fprintf(file, "%d %d", local_min_max.min, local_min_max.max);
           fclose(file);
         } else {
-          // close(pipefd[i * 2]); 
+          close(pipefd[i * 2]); 
           write(pipefd[i * 2 + 1], &local_min_max.min, sizeof(int));
           write(pipefd[i * 2 + 1], &local_min_max.max, sizeof(int));
-          // close(pipefd[i * 2 + 1]); 
+          close(pipefd[i * 2 + 1]); 
         }
-        // free(array);
-        // if (with_files) {
-        //   for (int j = 0; j < pnum; j++) {
-        //     free(filenames[j]);
-        //   }
-        //   free(filenames);
+        free(array);
+        if (with_files) {
+          for (int j = 0; j < pnum; j++) {
+            free(filenames[j]);
+          }
+          free(filenames);
         }
-        // free(child_pids);
+        free(child_pids);
         exit(0);
+      }
 
     } else {
       printf("Fork failed!\n");
@@ -186,30 +174,29 @@ int main(int argc, char **argv) {
     }
   }
 
-  // if (!with_files) {
-  //   for (int i = 0; i < pnum; i++) {
-  //     close(pipefd[i * 2 + 1]); 
-  //   }
-  // }
+  if (!with_files) {
+    for (int i = 0; i < pnum; i++) {
+      close(pipefd[i * 2 + 1]); 
+    }
+  }
 
   if (timeout > 0) {
-    signal(SIGALRM, send_SIGKILL);
+    signal(SIGALRM, SIG_DFL);
     
     alarm(timeout);
     
+    printf("Timeout set to %d seconds\n", timeout);
   }
 
   int completed_processes = 0;
   while (active_child_processes > 0) {
-    int status = 0;
+    int status;
     pid_t finished_pid = wait(&status);
     
     if (finished_pid > 0) {
       if (WIFEXITED(status)) {
-        // Процесс завершился нормально
         completed_processes++;
       } else if (WIFSIGNALED(status)) {
-        // Процесс был завершен по сигналу
         int signal_num = WTERMSIG(status);
         if (signal_num == SIGALRM) {
           printf("Process %d terminated by timeout\n", finished_pid);
@@ -223,23 +210,23 @@ int main(int argc, char **argv) {
     }
   }
 
-  // if (timeout > 0 && active_child_processes > 0) {
-  //   printf("Timeout reached! Killing remaining child processes...\n");
-  //   for (int i = 0; i < pnum; i++) {
-  //     if (kill(child_pids[i], 0) == 0) {
-  //       if (kill(child_pids[i], SIGKILL) == 0) {
-  //         printf("Killed child process with PID: %d\n", child_pids[i]);
-  //       } else {
-  //         printf("Failed to kill child process with PID: %d\n", child_pids[i]);
-  //       }
-  //     }
-  //   }
+  if (timeout > 0 && active_child_processes > 0) {
+    printf("Timeout reached! Killing remaining child processes...\n");
+    for (int i = 0; i < pnum; i++) {
+      if (kill(child_pids[i], 0) == 0) {
+        if (kill(child_pids[i], SIGKILL) == 0) {
+          printf("Killed child process with PID: %d\n", child_pids[i]);
+        } else {
+          printf("Failed to kill child process with PID: %d\n", child_pids[i]);
+        }
+      }
+    }
     
-  //   while (active_child_processes > 0) {
-  //     wait(NULL);
-  //     active_child_processes -= 1;
-  //   }
-  // }
+    while (active_child_processes > 0) {
+      wait(NULL);
+      active_child_processes -= 1;
+    }
+  }
 
   if (timeout > 0) {
     alarm(0);
@@ -265,16 +252,17 @@ int main(int argc, char **argv) {
             results_received++;
           }
         } else {
+          // read from pipes
           if (read(pipefd[i * 2], &min, sizeof(int)) > 0 && 
               read(pipefd[i * 2], &max, sizeof(int)) > 0) {
             results_received++;
           }
-          // close(pipefd[i * 2]); 
+          close(pipefd[i * 2]); 
         }
       } else {
         printf("Skipping results from process %d (terminated by timeout)\n", child_pids[i]);
         if (!with_files) {
-          // close(pipefd[i * 2]); 
+          close(pipefd[i * 2]); 
         }
         continue;
       }
@@ -289,9 +277,10 @@ int main(int argc, char **argv) {
         fclose(file);
         remove(filenames[i]);
       } else {
+        // read from pipes
         read(pipefd[i * 2], &min, sizeof(int));
         read(pipefd[i * 2], &max, sizeof(int));
-        // close(pipefd[i * 2]); 
+        close(pipefd[i * 2]); 
       }
       results_received++;
     }
@@ -311,10 +300,6 @@ int main(int argc, char **argv) {
   double elapsed_time = (finish_time.tv_sec - start_time.tv_sec) * 1000.0;
   elapsed_time += (finish_time.tv_usec - start_time.tv_usec) / 1000.0;
 
-  // for (int i = 0; i < pnum ; i++){
-  //   close(pipefd[i * 2]);
-  //   close(pipefd[i * 2 + 1]);
-  // }
   free(array);
   free(child_pids);
   if (with_files && filenames != NULL) {
