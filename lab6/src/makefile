@@ -4,10 +4,10 @@ CFLAGS = -pthread
 all: client server
 
 client: client.c common.o common.h
-	$(CC) $(CFLAGS) -o client client.c
+	$(CC) $(CFLAGS) -o client common.o client.c
 
 server: server.c common.o common.h
-	$(CC) $(CFLAGS) -o server server.c
+	$(CC) $(CFLAGS) -o server common.o server.c
 
 common.o: common.c common.h
 	$(CC) $(CFLAGS) -o common.o -c common.c
