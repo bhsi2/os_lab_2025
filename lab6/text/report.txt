@@ -1,0 +1,57 @@
+Задание 1
+
+Изменил server.c и client.c и скомпилировал:
+gcc -pthread -o client client.c
+gcc -pthread -o server server.c
+
+а после запустил сервера:
+./server --port 20001 --tnum 4
+./server --port 20002 --tnum 4
+./server --port 20003 --tnum 4
+
+и клиент:
+./client --k 100 --mod 1000000007 --servers servers.txt
+
+
+Задание 2 и 3
+
+
+Сделал простенький makefile:
+
+CC = gcc
+CFLAGS = -pthread
+
+all: client server
+
+client: client.c common.o common.h
+	$(CC) $(CFLAGS) -o client client.c
+
+server: server.c common.o common.h
+	$(CC) $(CFLAGS) -o server server.c
+
+common.o: common.c common.h
+	$(CC) $(CFLAGS) -o common.o -c common.c
+
+clean:
+	rm -f client server common.o
+
+run-server1:
+	./server --port 20001 --tnum 4
+
+run-server2:
+	./server --port 20002 --tnum 4
+
+run-server3:
+	./server --port 20003 --tnum 4
+
+run-client:
+	./client --k 100 --mod 1000000007 --servers servers.txt
+
+
+И вынес в библиотеку функции MultModulo, ConvertStringToUI64, структуру ComputeArgs
+ и функцию ComputeRangeProduct которая вычисляет произведения чисел в диапазоне по модулю.
+
+
+Задание 4
+
+не стал делать.
