@@ -60,7 +60,7 @@ void parse_arguments(int argc, char *argv[], int *k, int *pnum, int *mod) {
 }
 
 
-int main(int argc char *argv[]) {
+int main(int argc, char *argv[]) {
     int k, pnum, mod;
     
     parse_arguments(argc, argv, &k, &pnum, &mod);
